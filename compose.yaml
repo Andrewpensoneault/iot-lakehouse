@@ -1,0 +1,34 @@
+services:
+  seaweedfs:
+    build: ./docker/seaweedfs
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set in .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?set in .env}
+    ports:
+      - "8333:8333"
+      - "8888:8888"
+    volumes:
+      - seaweed-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  spark:
+    build: ./docker/spark
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?set in .env}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?set in .env}
+      S3_REGION: us-east-1
+    volumes:
+      - ./jobs:/app:Z
+    userns_mode: keep-id
+    command: sleep infinity
+
+volumes:
+  seaweed-data:
